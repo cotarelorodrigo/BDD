@@ -1,0 +1,19 @@
+# Limpiar la base de datos
+MATCH (n) DETACH DELETE n
+
+# Importar CSV al neo4j y crear los nodos y relaciones a partir de esto
+# Primero, ubicar el archivo csv en la carpeta import de la database
+LOAD CSV WITH HEADERS FROM "file:///small_info_vuelos_full.csv" AS vuelos
+MERGE (a:Ciudad { nombre: vuelos.origen })
+MERGE (b:Ciudad { nombre: vuelos.destino })
+MERGE (a)-[:VUELO {	aerolinea: vuelos.aerolinea,
+					fecha_salida: vuelos.fecha_salida,
+					horario_salida: vuelos.horario_salida,
+					fecha_llegada: vuelos.fecha_llegada,
+					horario_llegada: vuelos.horario_llegada,
+					precio: vuelos.precio,
+					asientos: vuelos.asientos_dispobiles
+					}]->(b)
+
+# Mostrar la base de datos
+MATCH (n) RETURN n
