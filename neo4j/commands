@@ -1,3 +1,9 @@
+# TODO
+- Cambiar los horarios por timestamps y agregar una columna 'duracion'
+- Ver como poner la condicion de horario_salida(n+1) > horario_llegada(n)
+- Ver como ir acumulando el precio y comprobar que no se pase del limite
+
+
 # Limpiar la base de datos
 MATCH (n) DETACH DELETE n
 
@@ -17,3 +23,20 @@ MERGE (a)-[:VUELO {	aerolinea: vuelos.aerolinea,
 
 # Mostrar la base de datos
 MATCH (n) RETURN n
+
+# Instalar la librería APOC (contiene algoritmos de grafos)
+# Ir a la database en neo4j - plugins, instalar
+
+# Algoritmo de dijkstra
+MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
+CALL apoc.algo.dijkstra(start, end, 'precio')
+YIELD path, precio
+RETURN path, precio
+
+# Aplicar condicion sobre la relacion (vuelos)
+# Hay que asignarle un alias a la relacion
+# Asientos disponibles >= n
+WHERE vuelos.asientos >= n
+
+# Costo <= n
+WHERE vuelos.cost <= n
