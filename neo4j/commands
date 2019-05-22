@@ -29,9 +29,16 @@ MATCH (n) RETURN n
 
 # Algoritmo de dijkstra
 MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
-CALL apoc.algo.dijkstra(start, end, 'precio')
-YIELD path, precio
+CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
+YIELD path, weight AS precio
 RETURN path, precio
+
+# Version con cypher pura (algo asi)
+MATCH p=(start:Point {title: 'Some Point 1'})-[rels:distance*]->(end:Point {title: 'Some Point 5'})
+WITH p, REDUCE(weight=0, rel in rels | weight + rel.value) as length
+RETURN p, length 
+ORDER BY length ASC
+LIMIT 10
 
 # Aplicar condicion sobre la relacion (vuelos)
 # Hay que asignarle un alias a la relacion
