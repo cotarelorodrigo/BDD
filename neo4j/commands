@@ -1,8 +1,9 @@
 # TODO
 - Cambiar los horarios por timestamps y agregar una columna 'duracion'
-- Ver como poner la condicion de horario_salida(n+1) > horario_llegada(n)
-- Ver como ir acumulando el precio y comprobar que no se pase del limite
+- Eliminar las columnas de iata_codes y distancia recorrida
 
+# Desactivar el auto-complete para que el grafo resultante sea la solución
+# Ir a Browser Settings - Destildar "Connect result nodes"
 
 # Limpiar la base de datos
 MATCH (n) DETACH DELETE n
@@ -33,17 +34,23 @@ CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
 YIELD path, weight AS precio
 RETURN path, precio
 
-# Version con cypher pura (algo asi)
-MATCH p=(start:Point {title: 'Some Point 1'})-[rels:distance*]->(end:Point {title: 'Some Point 5'})
-WITH p, REDUCE(weight=0, rel in rels | weight + rel.value) as length
-RETURN p, length 
-ORDER BY length ASC
-LIMIT 10
+# Ir acumulando precios para no pasarme de un limite
+WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite
+MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio
+WHERE toFloat(precio) <= costo_limite
+RETURN path, toFloat(precio)
+ORDER BY precio ASC
+LIMIT 1
 
-# Aplicar condicion sobre la relacion (vuelos)
-# Hay que asignarle un alias a la relacion
-# Asientos disponibles >= n
-WHERE vuelos.asientos >= n
+# Aplicar condicion sobre los vuelos obtenidos en el path
+WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
+MATCH path = allShortestPaths((a:Ciudad {nombre: origen})-[vuelos:VUELO*]->(b:Ciudad {nombre: destino}))
+WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+RETURN path
 
-# Costo <= n
-WHERE vuelos.cost <= n
+# Comparar relaciones dentro del path (para asegurarme que los vuelos salgan en orden)
+WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
+MATCH path = (a:Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b:Ciudad {nombre: destino})
+WHERE v1.horario_llegada < v2.horario_salida
+RETURN path
