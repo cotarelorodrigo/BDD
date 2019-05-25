@@ -1,56 +1,119 @@
-# TODO
-- Cambiar los horarios por timestamps y agregar una columna 'duracion'
-- Eliminar las columnas de iata_codes y distancia recorrida
+# TODO:
+- Ver como sumar el tiempo entre vuelos
+- Ver como ir acumulando el precio e incluirlo en el WHERE
 
-# Desactivar el auto-complete para que el grafo resultante sea la solución
-# Ir a Browser Settings - Destildar "Connect result nodes"
+# LINKS:
+- Algoritmos de camino minimo
+	--> Link: https://neo4j.com/docs/graph-algorithms/current/algorithms/shortest-path/
+- Cypher projection
+	--> Link: https://neo4j.com/docs/graph-algorithms/current/projected-graph-model/cypher-projection/
 
-# Limpiar la base de datos
-MATCH (n) DETACH DELETE n
+# IMPORTANTE:
+Desactivar el auto-complete para que el grafo resultante sea la solución
+	--> Ir a Browser Settings - Destildar "Connect result nodes"
 
-# Importar CSV al neo4j y crear los nodos y relaciones a partir de esto
-# Primero, ubicar el archivo csv en la carpeta import de la database
-LOAD CSV WITH HEADERS FROM "file:///small_info_vuelos_full.csv" AS vuelos
-MERGE (a:Ciudad { nombre: vuelos.origen })
-MERGE (b:Ciudad { nombre: vuelos.destino })
-MERGE (a)-[:VUELO {	aerolinea: vuelos.aerolinea,
-					fecha_salida: vuelos.fecha_salida,
-					horario_salida: vuelos.horario_salida,
-					fecha_llegada: vuelos.fecha_llegada,
-					horario_llegada: vuelos.horario_llegada,
-					precio: vuelos.precio,
-					asientos: vuelos.asientos_dispobiles
-					}]->(b)
+# COMANDOS:
+- Limpiar la base de datos
+	MATCH (n) DETACH DELETE n
 
-# Mostrar la base de datos
-MATCH (n) RETURN n
+- Importar CSV al neo4j y crear los nodos y relaciones a partir de esto (ubicar el archivo csv en la carpeta import de la database)	
+	LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
+	MERGE (a:Ciudad { nombre: vuelos.origen })
+	MERGE (b:Ciudad { nombre: vuelos.destino })
+	MERGE (a)-[:VUELO
+					{ aerolinea: vuelos.aerolinea,
+					  hora_salida: vuelos.hora_salida,
+					  hora_llegada: vuelos.hora_llegada,
+					  duracion: vuelos.duracion,
+					  precio: vuelos.precio,
+					  asientos: vuelos.asientos_disponibles }]->(b)
 
-# Instalar la librería APOC (contiene algoritmos de grafos)
-# Ir a la database en neo4j - plugins, instalar
+- Mostrar la base de datos
+	MATCH (n) RETURN n
 
-# Algoritmo de dijkstra
-MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
-CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
-YIELD path, weight AS precio
-RETURN path, precio
 
-# Ir acumulando precios para no pasarme de un limite
-WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite
-MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
-WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio
-WHERE toFloat(precio) <= costo_limite
-RETURN path, toFloat(precio)
-ORDER BY precio ASC
-LIMIT 1
+# CONSULTAS TP
+-------------------------------------------------------------------------------------------------------------------
+a) Encuentre un itinerario de modo que Garfield llegue lo antes posible a Zanzibar
+saliendo desde su hogar en “Indiana, IL” mañana:
 
-# Aplicar condicion sobre los vuelos obtenidos en el path
-WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
-MATCH path = allShortestPaths((a:Ciudad {nombre: origen})-[vuelos:VUELO*]->(b:Ciudad {nombre: destino}))
-WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
-RETURN path
+WITH 'Indiana' AS origen, 'Zanzibar' AS destino
 
-# Comparar relaciones dentro del path (para asegurarme que los vuelos salgan en orden)
-WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
-MATCH path = (a:Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b:Ciudad {nombre: destino})
-WHERE v1.horario_llegada < v2.horario_salida
-RETURN path
+MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
+
+CALL algo.shortestPath(inicio, fin, 'duracion', {
+		relationshipQuery:
+			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
+			 WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)',
+		graph:'cypher'})
+
+YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
+
+RETURN 	nodeCount AS cant_ciudades,
+		totalCost AS duracion_total,
+		loadMillis AS tiempo_carga,
+		evalMillis AS tiempo_algoritmo,
+		writeMillis AS tiempo_escritura
+
+
+-------------------------------------------------------------------------------------------------------------------
+b) Ídem A asegurándose de que:
+- Todos los vuelos cuenten con dos lugares disponibles, ya que Garfield quiere llevar también a Odie.
+- El costo no supere el presupuesto de Garfield, que es de 2000 pesos por individuo (4000 pesos en total).
+- El vuelo encontrado no pase por Gibraltar, ya que su pista de aterrizaje es una de las más peligrosas del mundo,
+  y Garfield definitivamente no quiere pasar por allí.
+
+WITH 'Indiana' AS origen,
+	 'Zanzibar' AS destino,
+	 2 AS min_asientos,
+	 min_asientos * 2000 AS precio_total,
+	 'Gibraltar' AS peligro
+
+MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
+
+CALL algo.shortestPath(inicio, fin, 'duracion', {
+		nodeQuery:
+			'MATCH (p: Ciudad) WHERE not p.nombre = peligro'
+		relationshipQuery:
+			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
+			 WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)
+			 AND v1.asientos >= min_asientos AND v2.asientos >= min_asientos',
+		graph:'cypher'})
+
+YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
+
+RETURN 	nodeCount AS cant_ciudades,
+		totalCost AS duracion_total,
+		loadMillis AS tiempo_carga,
+		evalMillis AS tiempo_algoritmo,
+		writeMillis AS tiempo_escritura
+
+
+# ANEXOS
+-------------------------------------------------------------------------------------------------------------------
+- Algoritmo de dijkstra (plugin APOC)
+	MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
+	CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
+	YIELD path, weight AS precio
+	RETURN path, precio
+
+- Ir acumulando precios para no pasarme de un limite
+	WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio
+	WHERE toFloat(precio) <= costo_limite
+	RETURN path, toFloat(precio)
+	ORDER BY precio ASC
+	LIMIT 1
+
+- Aplicar condicion sobre los vuelos obtenidos en el path
+	WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
+	MATCH path = allShortestPaths((a:Ciudad {nombre: origen})-[vuelos:VUELO*]->(b:Ciudad {nombre: destino}))
+	WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path
+
+- Comparar relaciones dentro del path (para asegurarme que los vuelos salgan en orden)
+	WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS max_costo, 2 AS min_asientos
+	MATCH path = (a:Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b:Ciudad {nombre: destino})
+	WHERE v1.horario_llegada < v2.horario_salida
+	RETURN path
