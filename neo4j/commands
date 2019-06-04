@@ -1,7 +1,3 @@
-# TODO:
-- Ver como sumar el tiempo entre vuelos
-- Ver como ir acumulando el precio e incluirlo en el WHERE
-
 # LINKS:
 - Algoritmos de camino minimo
 	--> Link: https://neo4j.com/docs/graph-algorithms/current/algorithms/shortest-path/
@@ -23,7 +19,7 @@ Desactivar el auto-complete para que el grafo resultante sea la solución
 	USING PERIODIC COMMIT
 
 - Importar CSV al neo4j y crear los nodos y relaciones a partir de esto (ubicar el archivo csv en la carpeta import de la database)	
-	LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
+	LOAD CSV WITH HEADERS FROM "file:///small_info_vuelos.csv" AS vuelos
 	MERGE (a:Ciudad { nombre: vuelos.origen })
 	MERGE (b:Ciudad { nombre: vuelos.destino })
 	MERGE (a)-[:VUELO
@@ -40,9 +36,11 @@ Desactivar el auto-complete para que el grafo resultante sea la solución
 	(b:Ciudad { nombre: "Charlotte"}),
 	(c:Ciudad { nombre: "California"}),
 	(d:Ciudad { nombre: "Vancouver"}),
-	(a)-[:VUELO {hora_salida: "2019-03-07T06:03", hora_llegada: "2019-03-07T08:58", duracion: 175, precio: 577, asientos: 0}]->(b),
+	(a)-[:VUELO {hora_salida: "2019-03-07T06:03", hora_llegada: "2019-03-07T08:58", duracion: 175, precio: 577, asientos: 2}]->(b),
 	(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 2}]->(c),
-	(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T20:55", duracion: 132, precio: 1200, asientos: 1}]->(d)
+	(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 0}]->(c),
+	(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T20:55", duracion: 132, precio: 1200, asientos: 1}]->(d),
+	(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T21:55", duracion: 192, precio: 2200, asientos: 1}]->(d)
 
 - Esto anda, lo probé en el neo4j online
 	WITH 'Allentown' AS origen, 'Vancouver' AS destino
@@ -73,7 +71,7 @@ WITH 'Indiana' AS origen, 'Zanzibar' AS destino
 
 MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
 
-CALL algo.shortestPath(inicio, fin, 'duracion', {
+CALL algo.shortestPath(inicio, fin, 'hora_llegada', {
 		relationshipQuery:
 			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
 			 WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)',
@@ -123,12 +121,14 @@ RETURN 	nodeCount AS cant_ciudades,
 
 # ANEXOS
 -------------------------------------------------------------------------------------------------------------------
+ESTE FUNCA SOLO INSTALANDO EL PLUGIN
 - Algoritmo de dijkstra (plugin APOC)
 	MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
 	CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
 	YIELD path, weight AS precio
 	RETURN path, precio
 
+ESTE FUNCA
 - Ir acumulando precios para no pasarme de un limite
 	WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite
 	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
@@ -138,14 +138,32 @@ RETURN 	nodeCount AS cant_ciudades,
 	ORDER BY precio ASC
 	LIMIT 1
 
+ESTE FUNCA
 - Aplicar condicion sobre los vuelos obtenidos en el path
 	WITH 'Arequipa' AS origen, 'Lima' AS destino, 2 AS min_asientos
 	MATCH path = allShortestPaths((a:Ciudad {nombre: origen})-[vuelos:VUELO*]->(b:Ciudad {nombre: destino}))
 	WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
 	RETURN path
+	
+ESTE FUNCA
+- Origen y destino
+- Limite de precio
+- Cantidad minima de asientos para cada vuelo
+- Orden por duracion
 
+WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite, 3 AS min_asientos
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio,
+			   REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.duracion) as duracion
+	WHERE toFloat(precio) <= costo_limite
+    AND toInt(duracion) <= 100
+    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path, toFloat(precio)
+	ORDER BY duracion ASC
+
+ESTE FUNCA SOLO SI HAY MAS DE UN VUELO
 - Comparar relaciones dentro del path (para asegurarme que los vuelos salgan en orden)
 	WITH 'Arequipa' AS origen, 'Lima' AS destino
 	MATCH path = (a:Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b:Ciudad {nombre: destino})
-	WHERE v1.horario_llegada < v2.horario_salida
+	WHERE v1.hora_llegada < v2.hora_salida
 	RETURN path

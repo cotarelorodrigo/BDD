@@ -1,0 +1,28 @@
+# QUERIES
+# TODO: a esto le faltaria filtrar en el path que no esté X ciudad
+# y chequear que los vuelos salgan ordenados
+
+1. Obtener la ruta de menor duración desde 'Ciudad A' hasta 'Ciudad B' considerando que:
+	- El precio total de los vuelos no supere PRECIO_MAX
+	- Todos los vuelos tengan al menos MIN_ASIENTOS asientos
+
+# Opcion 1: devuelve la ruta de menor duración total de los vuelos
+WITH 'Allentown' AS origen, 'Vancouver' AS destino, 1000 AS precio_max, 2 AS min_asientos
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio,
+			   REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.duracion) as duracion
+	WHERE toInt(precio) <= precio_max
+    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path, toInt(precio)
+	ORDER BY duracion ASC
+	LIMIT 1
+
+# Opcion 2: devuelve la ruta con la menor hora de llegada del último vuelo
+WITH 'Allentown' AS origen, 'Vancouver' AS destino, 1000 AS precio_max, 2 AS min_asientos
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio, LAST(vuelos) as ultimo_vuelo
+	WHERE toInt(precio) <= precio_max
+    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path, toInt(precio) AS precio_total
+	ORDER BY ultimo_vuelo.hora_llegada ASC
+    LIMIT 1
