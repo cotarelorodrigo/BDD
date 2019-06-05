@@ -1,28 +1,62 @@
-# QUERIES
-# TODO: a esto le faltaria filtrar en el path que no esté X ciudad
-# y chequear que los vuelos salgan ordenados
+------------------
+DATASET DE PRUEBAS
+------------------
+CREATE
+(a:Ciudad { nombre: "Allentown"}),
+(b:Ciudad { nombre: "Charlotte"}),
+(c:Ciudad { nombre: "California"}),
+(d:Ciudad { nombre: "Vancouver"}),
+(a)-[:VUELO {hora_salida: "2019-03-07T06:03", hora_llegada: "2019-03-07T08:58", duracion: 175, precio: 577, asientos: 2}]->(b),
+(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 2}]->(c),
+(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 0}]->(c),
+(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T20:55", duracion: 132, precio: 1200, asientos: 1}]->(d),
+(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T21:55", duracion: 192, precio: 2200, asientos: 1}]->(d)
 
-1. Obtener la ruta de menor duración desde 'Ciudad A' hasta 'Ciudad B' considerando que:
-	- El precio total de los vuelos no supere PRECIO_MAX
-	- Todos los vuelos tengan al menos MIN_ASIENTOS asientos
+---------
+CONSULTAS
+---------
+a) Encuentre un itinerario de modo que Garfield llegue lo antes posible a Zanzibar
+saliendo desde su hogar en “Indiana, IL” mañana:
 
-# Opcion 1: devuelve la ruta de menor duración total de los vuelos
-WITH 'Allentown' AS origen, 'Vancouver' AS destino, 1000 AS precio_max, 2 AS min_asientos
+	WITH
+	'Indiana' AS origen,
+	'Zanzibar' AS destino,
+	1 AS cant_pasajeros
+
 	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
-	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio,
-			   REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.duracion) as duracion
-	WHERE toInt(precio) <= precio_max
-    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
-	RETURN path, toInt(precio)
-	ORDER BY duracion ASC
+	WITH path, LAST(vuelos) as ultimo_vuelo
+
+	WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= cant_pasajeros)
+	AND ALL (i in Range(0, length(vuelos) - 2) WHERE (vuelos[i]).hora_llegada < (vuelos[i+1]).hora_salida)
+
+	RETURN path, EXTRACT (ciudad in ciudades | ciudad.nombre) as ciudades
+	ORDER BY ultimo_vuelo.hora_llegada ASC
 	LIMIT 1
 
-# Opcion 2: devuelve la ruta con la menor hora de llegada del último vuelo
-WITH 'Allentown' AS origen, 'Vancouver' AS destino, 1000 AS precio_max, 2 AS min_asientos
+
+b) Ídem A asegurándose de que:
+- Todos los vuelos cuenten con dos lugares disponibles, ya que Garfield quiere llevar también a Odie.
+- El costo no supere el presupuesto de Garfield, que es de 2000 pesos por individuo (4000 pesos en total).
+- El vuelo encontrado no pase por Gibraltar, ya que su pista de aterrizaje es una de las más peligrosas del mundo,
+  y Garfield definitivamente no quiere pasar por allí.
+
+	WITH
+	'Indiana' AS origen,
+	'Zanzibar' AS destino,
+	'Gibraltar' AS peligro,
+	2 AS cant_pasajeros,
+	4000 AS precio_max
+
 	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
-	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio, LAST(vuelos) as ultimo_vuelo
-	WHERE toInt(precio) <= precio_max
-    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
-	RETURN path, toInt(precio) AS precio_total
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + toInt(vuelo.precio) * cant_pasajeros) as precio_total,
+			   LAST(vuelos) as ultimo_vuelo,
+			   NODES(path) as ciudades
+			   
+	WHERE precio_total <= precio_max
+	AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= cant_pasajeros)
+	AND ALL (i in Range(0, length(vuelos) - 2) WHERE (vuelos[i]).hora_llegada < (vuelos[i+1]).hora_salida)
+	AND ALL (ciudad in ciudades WHERE ciudad.nombre <> peligro)
+
+	RETURN path, EXTRACT (ciudad in ciudades | ciudad.nombre) as ciudades, precio_total
 	ORDER BY ultimo_vuelo.hora_llegada ASC
-    LIMIT 1
+	LIMIT 1
