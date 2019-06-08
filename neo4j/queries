@@ -24,7 +24,7 @@ saliendo desde su hogar en “Indiana, IL” mañana:
 	1 AS cant_pasajeros
 
 	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
-	WITH path, LAST(vuelos) as ultimo_vuelo
+	WITH path, LAST(vuelos) as ultimo_vuelo, NODES(path) as ciudades
 
 	WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= cant_pasajeros)
 	AND ALL (i in Range(0, length(vuelos) - 2) WHERE (vuelos[i]).hora_llegada < (vuelos[i+1]).hora_salida)
