@@ -17,7 +17,7 @@ COMANDOS
 	USING PERIODIC COMMIT
 
 - Importar CSV al neo4j y crear los nodos y relaciones (ubicar el archivo CSV en la carpeta import del neo4j)	
-	LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
+	LOAD CSV WITH HEADERS FROM "file:///info_vuelos_final.csv" AS vuelos
 	MERGE (a:Ciudad { nombre: vuelos.origen })
 	MERGE (b:Ciudad { nombre: vuelos.destino })
 	MERGE (a)-[:VUELO
