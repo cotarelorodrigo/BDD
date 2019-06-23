@@ -1,0 +1,169 @@
+# LINKS:
+- Algoritmos de camino minimo
+	--> Link: https://neo4j.com/docs/graph-algorithms/current/algorithms/shortest-path/
+- Cypher projection
+	--> Link: https://neo4j.com/docs/graph-algorithms/current/projected-graph-model/cypher-projection/
+
+# IMPORTANTE:
+Desactivar el auto-complete para que el grafo resultante sea la solución
+	--> Ir a Browser Settings - Destildar "Connect result nodes"
+
+# COMANDOS:
+- Limpiar la base de datos
+	MATCH (n) DETACH DELETE n
+	
+- Mostrar la base de datos
+	MATCH (n) RETURN n
+
+- Importar archivos muy grandes (esto va antes del LOAD CSV)
+	USING PERIODIC COMMIT
+
+- Importar CSV al neo4j y crear los nodos y relaciones a partir de esto (ubicar el archivo csv en la carpeta import de la database)	
+	LOAD CSV WITH HEADERS FROM "file:///small_info_vuelos.csv" AS vuelos
+	MERGE (a:Ciudad { nombre: vuelos.origen })
+	MERGE (b:Ciudad { nombre: vuelos.destino })
+	MERGE (a)-[:VUELO
+					{ aerolinea: vuelos.aerolinea,
+					  hora_salida: vuelos.hora_salida,
+					  hora_llegada: vuelos.hora_llegada,
+					  duracion: vuelos.duracion,
+					  precio: vuelos.precio,
+					  asientos: vuelos.asientos_disponibles }]->(b)
+
+- Para neo4j online, no pude usar LOAD CSV
+	CREATE
+	(a:Ciudad { nombre: "Allentown"}),
+	(b:Ciudad { nombre: "Charlotte"}),
+	(c:Ciudad { nombre: "California"}),
+	(d:Ciudad { nombre: "Vancouver"}),
+	(a)-[:VUELO {hora_salida: "2019-03-07T06:03", hora_llegada: "2019-03-07T08:58", duracion: 175, precio: 577, asientos: 2}]->(b),
+	(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 2}]->(c),
+	(b)-[:VUELO {hora_salida: "2019-03-09T11:26", hora_llegada: "2019-03-09T13:31", duracion: 125, precio: 1000, asientos: 0}]->(c),
+	(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T20:55", duracion: 132, precio: 1200, asientos: 1}]->(d),
+	(c)-[:VUELO {hora_salida: "2019-03-10T18:43", hora_llegada: "2019-03-10T21:55", duracion: 192, precio: 2200, asientos: 1}]->(d)
+
+- Esto anda, lo probé en el neo4j online
+	WITH 'Allentown' AS origen, 'Vancouver' AS destino
+
+	MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
+
+	CALL algo.shortestPath(inicio, fin, 'duracion')
+
+	YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
+
+	RETURN 	nodeCount AS cant_ciudades,
+			totalCost AS duracion_total,
+			loadMillis AS tiempo_carga,
+			evalMillis AS tiempo_algoritmo,
+			writeMillis AS tiempo_escritura
+
+
+# CONSULTAS TP
+-------------------------------------------------------------------------------------------------------------------
+a) Encuentre un itinerario de modo que Garfield llegue lo antes posible a Zanzibar
+saliendo desde su hogar en “Indiana, IL” mañana:
+
+# Esto me tira un Neo.ClientError.Procedure.ProcedureCallFailed: Failed to invoke procedure `algo.shortestPath`:
+# Caused by: java.lang.NullPointerException
+	--> El error esta en el comando graph: 'cypher', pero si le saco eso no respeta el match
+
+WITH 'Indiana' AS origen, 'Zanzibar' AS destino
+
+MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
+
+CALL algo.shortestPath(inicio, fin, 'hora_llegada', {
+		relationshipQuery:
+			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
+			 WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)',
+		graph:'cypher'})
+
+YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
+
+RETURN 	nodeCount AS cant_ciudades,
+		totalCost AS duracion_total,
+		loadMillis AS tiempo_carga,
+		evalMillis AS tiempo_algoritmo,
+		writeMillis AS tiempo_escritura
+
+
+-------------------------------------------------------------------------------------------------------------------
+b) Ídem A asegurándose de que:
+- Todos los vuelos cuenten con dos lugares disponibles, ya que Garfield quiere llevar también a Odie.
+- El costo no supere el presupuesto de Garfield, que es de 2000 pesos por individuo (4000 pesos en total).
+- El vuelo encontrado no pase por Gibraltar, ya que su pista de aterrizaje es una de las más peligrosas del mundo,
+  y Garfield definitivamente no quiere pasar por allí.
+
+WITH 'Indiana' AS origen,
+	 'Zanzibar' AS destino,
+	 2 AS min_asientos,
+	 min_asientos * 2000 AS precio_total,
+	 'Gibraltar' AS peligro
+
+MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
+
+CALL algo.shortestPath(inicio, fin, 'duracion', {
+		nodeQuery:
+			'MATCH (p: Ciudad) WHERE not p.nombre = peligro'
+		relationshipQuery:
+			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
+			 WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)
+			 AND v1.asientos >= min_asientos AND v2.asientos >= min_asientos',
+		graph:'cypher'})
+
+YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
+
+RETURN 	nodeCount AS cant_ciudades,
+		totalCost AS duracion_total,
+		loadMillis AS tiempo_carga,
+		evalMillis AS tiempo_algoritmo,
+		writeMillis AS tiempo_escritura
+
+
+# ANEXOS
+-------------------------------------------------------------------------------------------------------------------
+ESTE FUNCA SOLO INSTALANDO EL PLUGIN
+- Algoritmo de dijkstra (plugin APOC)
+	MATCH (start: Ciudad {nombre: 'Arequipa'}), (end: Ciudad {nombre: 'Lima'})
+	CALL apoc.algo.dijkstra(start, end, 'VUELO', 'precio')
+	YIELD path, weight AS precio
+	RETURN path, precio
+
+ESTE FUNCA
+- Ir acumulando precios para no pasarme de un limite
+	WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio
+	WHERE toFloat(precio) <= costo_limite
+	RETURN path, toFloat(precio)
+	ORDER BY precio ASC
+	LIMIT 1
+
+ESTE FUNCA
+- Aplicar condicion sobre los vuelos obtenidos en el path
+	WITH 'Arequipa' AS origen, 'Lima' AS destino, 2 AS min_asientos
+	MATCH path = allShortestPaths((a:Ciudad {nombre: origen})-[vuelos:VUELO*]->(b:Ciudad {nombre: destino}))
+	WHERE ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path
+	
+ESTE FUNCA
+- Origen y destino
+- Limite de precio
+- Cantidad minima de asientos para cada vuelo
+- Orden por duracion
+
+WITH 'Arequipa' AS origen, 'Lima' AS destino, 300 AS costo_limite, 3 AS min_asientos
+	MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
+	WITH path, REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.precio) as precio,
+			   REDUCE(weight = 0, vuelo in vuelos | weight + vuelo.duracion) as duracion
+	WHERE toFloat(precio) <= costo_limite
+    AND toInt(duracion) <= 100
+    AND ALL (vuelo in vuelos WHERE toInt(vuelo.asientos) >= min_asientos)
+	RETURN path, toFloat(precio)
+	ORDER BY duracion ASC
+
+ESTE FUNCA SOLO SI HAY MAS DE UN VUELO
+- Comparar relaciones dentro del path (para asegurarme que los vuelos salgan en orden)
+	WITH 'Arequipa' AS origen, 'Lima' AS destino
+	MATCH path = (a:Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b:Ciudad {nombre: destino})
+	WHERE v1.hora_llegada < v2.hora_salida
+	RETURN path
