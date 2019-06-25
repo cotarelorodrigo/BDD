@@ -4,6 +4,18 @@
 \usepackage{graphicx}
 \usepackage[ansinew]{inputenc}
 \usepackage[utf8]{inputenx}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+breaklines,
+backgroundcolor=\color{lightgray},
+keywordstyle=*\color{blue},
+otherkeywords = {MATCH, LIMIT, WITH, ORDER, BY, WHERE},
+morekeywords = [2]{MATCH, LIMIT, WITH, ORDER, BY, WHERE},
+frame=single, 
+language={[77]Fortran}, 
+columns=fullflexible}
 
 \title{\textbf{Trabajo Práctico Aéreos} \\[1cm] \includegraphics[scale=1]{../../../Pictures/fiuba.png}}
 
@@ -75,28 +87,26 @@ Nuestra primera interpretación de las consultas nos llevó a pensar que debíam
 El primer problema con el que nos encontramos fue que, como se mencionó antes, nuestro Neo4j Desktop no podía cambiar a modo online, por lo cual no podíamos instalar los plugins necesarios para hacer uso de dichas librerías.
 Para sortear este inconveniente utilizamos los sandbox. A pesar de que los plugins ya estaban instalados en este entorno, nos encontramos con un error en la consulta que desarrollamos que no supimos resolver.
 Se detalla a continuación la consulta propuesta en su momento:
-\begin{verbatim}
+\begin{lstlisting}[frame=single]
 WITH 'Indiana' AS origen, 'Zanzibar' AS destino
 MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
-CALL algo.shortestPath(inicio, fin, 'hora_llegada',
-{ relationshipQuery:
-			'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
-			WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)',
-		graph:'cypher'})
+CALL algo.shortestPath(inicio, fin, 'hora_llegada',{ relationshipQuery:
+'MATCH (a: Ciudad {nombre: origen})-[v1:VUELO]-()-[v2:VUELO]->(b: Ciudad {nombre: destino})
+WHERE localdatetime(v1.hora_llegada) < localdatetime(v2.hora_salida)', graph:'cypher'})
 YIELD nodeCount, totalCost, loadMillis, evalMillis, writeMillis
 RETURN 	nodeCount AS cant_ciudades,
 		totalCost AS duracion_total,
 		loadMillis AS tiempo_carga,
 		evalMillis AS tiempo_algoritmo,
 		writeMillis AS tiempo_escritura
-\end{verbatim}
+\end{lstlisting}
 Como se puede ver, hicimos uso de la librería ALGO, en particular de la función shortestPath. A su vez, para resolver las restricciones propias del problema, aplicamos subconsultas sobre las relaciones resultantes del camino obtenido.
 Sin embargo, nunca lo pudimos hacer funcionar, obteniendo siempre el siguiente error:
-\begin{verbatim}
+\begin{lstlisting}[frame=single]
 Neo.ClientError.Procedure.ProcedureCallFailed: Failed to invoke 
 procedure `algo.shortestPath`:
 Caused by: java.lang.NullPointerException
-\end{verbatim}
+\end{lstlisting}
 
 \section{Segundo approach para resolver las consultas}
 En el mismo momento que decidimos dejar de lado el uso de librerías por los reiterados inconvenientes técnicos, nos dimos cuenta que nuestra primera interpretación del problema fue errónea: estábamos apuntando a minimizar la duración total de los vuelos, cuando en realidad el objetivo era encontrar el camino cuyo último vuelo tenga la menor hora de llegada.
@@ -117,33 +127,40 @@ Finalmente, ejecutamos las consultas en el lenguaje Cypher. Los resultados obten
 \section*{Comandos utilizados}
 A continuación, se listan una serie de comandos que utilizamos reiteradas veces a lo largo del trabajo:
 \bigbreak
+\noindent
 \underline{Limpiar la base de datos completa}\\
-
+\noindent
+\\
 MATCH (n) DETACH DELETE n
 \bigbreak
+\noindent
 \underline{Mostrar la base de datos completa}\\
-
+\noindent
+\\
 MATCH (n) RETURN n
 \bigbreak
+\noindent
 \underline{Importar archivos muy grandes}\\
-
+\noindent
+\\
 USING PERIODIC COMMIT
 \bigbreak
+\noindent
 \underline{Importar CSV al Neo4j y crear nodos y relaciones}\\
 
 Previamente, debe colocarse el archivo csv en la carpeta import del Neo4j.
-\begin{verbatim}
-	LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
-	MERGE (a:Ciudad { nombre: vuelos.origen })
-	MERGE (b:Ciudad { nombre: vuelos.destino })
-	MERGE (a)-[:VUELO
-				{ aerolinea: vuelos.aerolinea,
-				  hora_salida: vuelos.hora_salida,
-				  hora_llegada: vuelos.hora_llegada,
-				  duracion: vuelos.duracion,
-				  precio: vuelos.precio,
-				  asientos: vuelos.asientos_disponibles }]->(b)
-\end{verbatim}
+\begin{lstlisting}[frame=single]
+LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
+MERGE (a:Ciudad { nombre: vuelos.origen })
+MERGE (b:Ciudad { nombre: vuelos.destino })
+MERGE (a)-[:VUELO
+	{ aerolinea: vuelos.aerolinea,
+	hora_salida: vuelos.hora_salida,
+	hora_llegada: vuelos.hora_llegada,
+	duracion: vuelos.duracion,
+	precio: vuelos.precio,
+	asientos: vuelos.asientos_disponibles }]->(b)
+\end{lstlisting}
 
 \newpage
 \section*{Consultas}
@@ -159,7 +176,7 @@ Para ello, la instrucción [vuelos:VUELO*] se reemplazó por [vuelos:VUELO*1..N]
 
 Garfield quiere irse de vacaciones a la paradisíaca isla de Zanzíbar en el Océano Índico.
 A) Encuentre un itinerario de modo que Garfield llegue lo antes posible a Zanzibar saliendo desde su hogar en “Indiana, IL” mañana.
-\begin{verbatim}
+\begin{lstlisting}[frame=single]
 WITH
 'Indiana' AS origen,
 'Zanzibar' AS destino,
@@ -174,21 +191,22 @@ AND ALL (i in Range(0, length(vuelos) - 2) WHERE
 RETURN path, EXTRACT (ciudad in ciudades | ciudad.nombre) as ciudades
 ORDER BY ultimo_vuelo.hora_llegada ASC
 LIMIT 1
-\end{verbatim}
+\end{lstlisting}
 
 B) Encuentre un segundo itinerario que resuelva los siguientes problemas:
 - Asegúrese de que todos los vuelos cuenten con dos lugares disponibles, ya que Garfield quiere llevar también a Odie.
 - Asegúrese de que el costo no supere el presupuesto de Garfield, que es de 2000 pesos por individuo (4000 pesos en total).
 - Asegúrese de que el vuelo encontrado no pase por Gibraltar, ya que su pista de aterrizaje es una de las más peligrosas del mundo, y Garfield definitivamente no quiere pasar por allí.
-\begin{verbatim}
+\newpage
+\begin{lstlisting}[frame=single]
 WITH
 'Indiana' AS origen,
 'Zanzibar' AS destino,
 'Gibraltar' AS peligro,
 2 AS cant_pasajeros,
 4000 AS precio_max
-MATCH path=(start: Ciudad {nombre: origen})-[vuelos:VUELO*]->(end:
-Ciudad {nombre: destino})
+MATCH path=(start: Ciudad {nombre: origen})-
+[vuelos:VUELO*]->(end: Ciudad {nombre: destino})
 WITH path, REDUCE(weight = 0, vuelo in vuelos | weight +
 toInt(vuelo.precio) * cant_pasajeros) as precio_total, LAST(vuelos) as
 ultimo_vuelo, NODES(path) as ciudades
@@ -202,7 +220,7 @@ RETURN path, EXTRACT (ciudad in ciudades | ciudad.nombre) as ciudades,
 precio_total
 ORDER BY ultimo_vuelo.hora_llegada ASC
 LIMIT 1
-\end{verbatim}
+\end{lstlisting}
 
 \newpage
 \section*{Resultados obtenidos}
@@ -210,6 +228,7 @@ Como se mencionó antes, las consultas las ejecutamos con valores distintos a lo
 A continuación, se detallan los resultados obtenidos:
 \subsection*{Consulta A}
 \subsubsection*{Ejecucion 1}
+\noindent
 \underline{Parámetros}
 \begin{itemize}
 \item Origen: Barcelona
@@ -221,7 +240,43 @@ A continuación, se detallan los resultados obtenidos:
 \item Camino encontrado: Barcelona $\rightarrow$ Miami
 \item Tiempo de ejecución: 1 hora y 56 minutos.
 \end{itemize}
-\includegraphics[scale=0.5]{../../../Pictures/consultaA.png}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaA.png}
+\end{center}
+
+\subsubsection*{Ejecucion 2}
+\noindent
+\underline{Parámetros}
+\begin{itemize}
+\item Origen: Madrid
+\item Destino: Hong Kong
+\item Límite de vuelos: 3
+\end{itemize}
+\underline{Resultados}
+\begin{itemize}
+\item Camino encontrado: Madrid $\rightarrow$ Helsinki $\rightarrow$ Hong Kong
+\item Tiempo de ejecución: 28 minutos.
+\end{itemize}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaA-ejec2.png}
+\end{center}
+
+\subsubsection*{Ejecucion 3}
+\noindent
+\underline{Parámetros}
+\begin{itemize}
+\item Origen: Budapest
+\item Destino: Arequipa
+\item Límite de vuelos: 3
+\end{itemize}
+\underline{Resultados}
+\begin{itemize}
+\item Camino encontrado: Budapest $\rightarrow$ Madrid $\rightarrow$ Lima $\rightarrow$ Arequipa
+\item Tiempo de ejecución: 50 segundos
+\end{itemize}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaA-ejec3.png}
+\end{center}
 
 \subsection*{Consulta B}
 \subsubsection*{Ejecucion 1}
@@ -239,8 +294,14 @@ A continuación, se detallan los resultados obtenidos:
 \item Camino encontrado: -
 \item Tiempo de ejecución: 8 horas y frenamos la ejecución.
 \end{itemize}
+Ante la larga ejecución del algoritmo, decidimos frenarla e intentar nuevamente, pero con un límite de vuelos igual a 3.
+El camino encontrado fue Liverpool $\rightarrow$ Fuerteventura $\rightarrow$ Madrid $\rightarrow$ Lima, con un tiempo de ejecución total de 12 minutos.\\
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaB-ejec1.png}
+\end{center}
 
 \subsubsection*{Ejecucion 2}
+\noindent
 \underline{Parámetros}
 \begin{itemize}
 \item Origen: Lima
@@ -254,8 +315,47 @@ A continuación, se detallan los resultados obtenidos:
 \item Camino encontrado: Lima $\rightarrow$ Miami $\rightarrow$ Birmingham
 \item Tiempo de ejecución: 15 minutos
 \end{itemize}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaB-ejec2.png}
+\end{center}
 
+\subsubsection*{Ejecucion 3}
+\noindent
+\underline{Parámetros}
+\begin{itemize}
+\item Origen: Madrid
+\item Destino: Hong Kong
+\item Peligro: Helsinki
+\item Precio máximo: 7000 USD
+\item Límite de vuelos: 3
+\end{itemize}
+\underline{Resultados}
+\begin{itemize}
+\item Camino encontrado: Madrid $\rightarrow$ Atlanta $\rightarrow$ Melbourne $\rightarrow$ Hong Kong
+\item Tiempo de ejecución: 29 minutos
+\end{itemize}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaB-ejec3.png}
+\end{center}
 
+\subsubsection*{Ejecucion 4}
+\noindent
+\underline{Parámetros}
+\begin{itemize}
+\item Origen: Budapest
+\item Destino: Cuzco
+\item Peligro: Barcelona
+\item Precio máximo: 6000 USD
+\item Límite de vuelos: 3
+\end{itemize}
+\underline{Resultados}
+\begin{itemize}
+\item Camino encontrado: Budapest $\rightarrow$ Madrid $\rightarrow$ Lima $\rightarrow$ Cuzco
+\item Tiempo de ejecución: 46 segundos
+\end{itemize}
+\begin{center}
+\includegraphics[scale=0.40]{../../../Pictures/consultaB-ejec4.png}
+\end{center}
 \end{document}
 
 
