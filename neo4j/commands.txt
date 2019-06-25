@@ -1,0 +1,29 @@
+----------
+IMPORTANTE
+----------
+Desactivar el auto-complete para que el grafo resultante sea la solución
+	--> Ir a Browser Settings - Destildar "Connect result nodes"
+
+--------
+COMANDOS
+--------
+- Limpiar la base de datos
+	MATCH (n) DETACH DELETE n
+	
+- Mostrar la base de datos
+	MATCH (n) RETURN n
+
+- Importar archivos muy grandes (esto va antes del LOAD CSV)
+	USING PERIODIC COMMIT
+
+- Importar CSV al neo4j y crear los nodos y relaciones (ubicar el archivo CSV en la carpeta import del neo4j)	
+	LOAD CSV WITH HEADERS FROM "file:///info_vuelos_final.csv" AS vuelos
+	MERGE (a:Ciudad { nombre: vuelos.origen })
+	MERGE (b:Ciudad { nombre: vuelos.destino })
+	MERGE (a)-[:VUELO
+					{ aerolinea: vuelos.aerolinea,
+					  hora_salida: vuelos.hora_salida,
+					  hora_llegada: vuelos.hora_llegada,
+					  duracion: vuelos.duracion,
+					  precio: vuelos.precio,
+					  asientos: vuelos.asientos_disponibles }]->(b)
