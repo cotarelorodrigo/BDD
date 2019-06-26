@@ -1,13 +1,19 @@
 \documentclass[a4paper,11pt]{article}
-
+\setcounter{secnumdepth}{-1}
 \usepackage[spanish]{babel}
 \usepackage{graphicx}
 \usepackage[ansinew]{inputenc}
 \usepackage[utf8]{inputenx}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=black,  %choose some color if you want links to stand out
+}
 
-\lstset{
+\lstdefinestyle{neo4j}{
 breaklines,
 backgroundcolor=\color{lightgray},
 keywordstyle=*\color{blue},
@@ -17,15 +23,16 @@ frame=single,
 language={[77]Fortran}, 
 columns=fullflexible}
 
+
 \title{\textbf{Trabajo Práctico Aéreos} \\[1cm] \includegraphics[scale=1]{./imagenes/fiuba.png}}
 
 \author{	Francisco Hermani, \textit{Padrón Nro. 98223}                     \\
             \texttt{ franhermani@gmail.com }                                              \\[2.5ex]
             Cotarelo Rodrigo, \textit{Padrón Nro. 98577}                     \\
             \texttt{ cotarelorodrigo@gmail.com }                                              \\[2.5ex]
-			Agostina Vázquez, \textit{Padrón Nro. }                    
+			Agostina Vázquez, \textit{Padrón Nro. 99689}                    
 \\
-            \texttt{ @gmail.com }                                              \\[2.5ex]
+            \texttt{ agostinavazquezisla@gmail.com }                                              \\[2.5ex]
             \normalsize{1er. Cuatrimestre de 2019}                                      \\
             \normalsize{95.02 Base de Datos}  \\
             \normalsize{Facultad de Ingeniería, Universidad de Buenos Aires}            \\
@@ -38,7 +45,8 @@ columns=fullflexible}
 \maketitle
 \thispagestyle{empty}   % quita el número en la primer página
 \newpage
-
+{\sffamily\tableofcontents}
+\newpage
 \section{Parser de los archivos HTML provistos por la cátedra}
 Este punto fue implementado exclusivamente en el notebook html scrapper, con el objetivo principal de interpretar y parsear los archivos HTML que nos proporcionó la cátedra para obtener una información preliminar de los vuelos.Así, logramos generar una serie de archivos pkl con los siguientes atributos de cada vuelo: aerolínea, horario de salida y de llegada, terminal de salida y de llegada, puerta de salida y de llegada, origen y destino. En puntos posteriores se verá que no todos los atributos nos resultaron de gran valor, razón por la cual algunos fueron dejados de lado.
 
@@ -57,14 +65,14 @@ De esta forma, en el notebook analysis obtuvimos métricas como:
 \newpage
 \item Días y horarios con mayor cantidad de vuelos
 \begin{center}
-\includegraphics[scale=0.25]{./imagenes/heatmap.png}
+\includegraphics[scale=0.35]{./imagenes/heatmap.png}
 \end{center}
 \item Destinos más frecuentes
 \begin{center}
-\includegraphics[scale=0.25]{./imagenes/wordcloud.png}
+\includegraphics[scale=0.35]{./imagenes/wordcloud.png}
 \end{center}
 \end{itemize}
-
+\newpage
 \section{Generación de la información completa de los vuelos}
 Retomando el flujo original del trabajo, apuntamos a generar el archivo definitivo de vuelos (primera versión al menos), con información consistente para utilizar en el Neo4j y suficiente para las consultas propuestas.
 Para ello, hicimos uso del notebook csv generator, en donde transformamos el archivo pkl en un formato csv para luego importarlo en el Neo4j.
@@ -80,7 +88,7 @@ Aquí es donde aplicamos la mayor limpieza de datos y cálculo de ciertos atribu
 Cabe aclarar que este punto no resultó tan trivial como parece.
 En principio, como no teníamos el costo de los vuelos, intentamos hacer uso de la API de Skyscanner. Para ello, investigamos sobre los endpoints que proveía y no logramos dar con el adecuado. Por ejemplo, uno carecía del costo del vuelo (nos colocaba en la misma situación que antes) y otro carecía del horario de llegada (lo cual era aún más limitante para la consigna del trabajo).
 Ante este dead-end, apostamos por obtener las distancias entre los aeropuertos mediante una función matemática y asignar un precio a cada vuelo proporcional a la distancia recorrida. Esto lo logramos gracias al archivo aeropuertos.csv proporcionado por la cátedra, que contenía las coordenadas de cada aeropuerto.
-
+\newpage
 \section{Lecturas sobre bases de datos orientadas a grafos y el lenguaje Cypher}
 Esta etapa fue principalmente de investigación sobre el lenguaje que utilizaríamos para las consultas. Junto con esto, tuvimos que fortalecer nuestros conocimientos teóricos sobre las bases de datos orientadas a grafos.
 Para ello, acudimos a los manuales provistos por la cátedra (Graph Databases y Learning Cypher) y a los tutoriales interactivos y manual oficial del Neo4j.
@@ -95,7 +103,8 @@ Nuestra primera interpretación de las consultas nos llevó a pensar que debíam
 El primer problema con el que nos encontramos fue que, como se mencionó antes, nuestro Neo4j Desktop no podía cambiar a modo online, por lo cual no podíamos instalar los plugins necesarios para hacer uso de dichas librerías.
 Para sortear este inconveniente utilizamos los sandbox. A pesar de que los plugins ya estaban instalados en este entorno, nos encontramos con un error en la consulta que desarrollamos que no supimos resolver.
 Se detalla a continuación la consulta propuesta en su momento:
-\begin{lstlisting}[frame=single]
+\newpage
+\begin{lstlisting}[style=neo4j]
 WITH 'Indiana' AS origen, 'Zanzibar' AS destino
 MATCH (inicio: Ciudad { nombre: origen }), (fin: Ciudad { nombre: destino })
 CALL algo.shortestPath(inicio, fin, 'hora_llegada',{ relationshipQuery:
@@ -110,7 +119,7 @@ RETURN 	nodeCount AS cant_ciudades,
 \end{lstlisting}
 Como se puede ver, hicimos uso de la librería ALGO, en particular de la función shortestPath. A su vez, para resolver las restricciones propias del problema, aplicamos subconsultas sobre las relaciones resultantes del camino obtenido.
 Sin embargo, nunca lo pudimos hacer funcionar, obteniendo siempre el siguiente error:
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}[style=neo4j]
 Neo.ClientError.Procedure.ProcedureCallFailed: Failed to invoke 
 procedure `algo.shortestPath`:
 Caused by: java.lang.NullPointerException
@@ -121,6 +130,7 @@ En el mismo momento que decidimos dejar de lado el uso de librerías por los rei
 Una vez que entendimos esto, investigamos aún más sobre el lenguaje Cypher y las posibilidades que ofrecía, hasta dar con la solución a ambas consultas.
 Para comprobar su correcto funcionamiento, implementamos pequeños datasets con restricciones apropiadas y distintas variantes de caminos.
 
+\newpage
 \section{Regeneración del set de datos}
 En base a lo charlado en clase, volvimos a generar el set de datos, reduciendo la cantidad de vuelos (había muchos similares entre un mismo origen y destino pero con una diferencia mínima de horarios) e instanciándolos durante 10 días a partir de la fecha actual de ejecución del script.
 
@@ -133,6 +143,7 @@ Finalmente, ejecutamos las consultas en el lenguaje Cypher. Los resultados obten
 
 \newpage
 \section*{Comandos utilizados}
+\addcontentsline{toc}{section}{Comandos utilizados}
 A continuación, se listan una serie de comandos que utilizamos reiteradas veces a lo largo del trabajo:
 \bigbreak
 \noindent
@@ -157,7 +168,7 @@ USING PERIODIC COMMIT
 \underline{Importar CSV al Neo4j y crear nodos y relaciones}\\
 
 Previamente, debe colocarse el archivo csv en la carpeta import del Neo4j.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}[style=neo4j]
 LOAD CSV WITH HEADERS FROM "file:///info_vuelos.csv" AS vuelos
 MERGE (a:Ciudad { nombre: vuelos.origen })
 MERGE (b:Ciudad { nombre: vuelos.destino })
@@ -172,6 +183,7 @@ MERGE (a)-[:VUELO
 
 \newpage
 \section*{Consultas}
+\addcontentsline{toc}{section}{Consultas}
 ACLARACIÓN: las consultas que propuso la cátedra fueron proporcionadas con variables cuyos valores, en algunos casos, no pudimos respetar. En particular, se dieron los siguientes casos:
 \begin{itemize}
 \item Ninguna de las ciudades mencionadas (Indiana, Zanzibar y Gibraltar) están presentes en nuestro set de datos final.
@@ -184,7 +196,7 @@ Para ello, la instrucción [vuelos:VUELO*] se reemplazó por [vuelos:VUELO*1..N]
 
 Garfield quiere irse de vacaciones a la paradisíaca isla de Zanzíbar en el Océano Índico.
 A) Encuentre un itinerario de modo que Garfield llegue lo antes posible a Zanzibar saliendo desde su hogar en “Indiana, IL” mañana.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}[style=neo4j]
 WITH
 'Indiana' AS origen,
 'Zanzibar' AS destino,
@@ -206,7 +218,7 @@ B) Encuentre un segundo itinerario que resuelva los siguientes problemas:
 - Asegúrese de que el costo no supere el presupuesto de Garfield, que es de 2000 pesos por individuo (4000 pesos en total).
 - Asegúrese de que el vuelo encontrado no pase por Gibraltar, ya que su pista de aterrizaje es una de las más peligrosas del mundo, y Garfield definitivamente no quiere pasar por allí.
 \newpage
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}[style=neo4j]
 WITH
 'Indiana' AS origen,
 'Zanzibar' AS destino,
@@ -232,8 +244,10 @@ LIMIT 1
 
 \newpage
 \section*{Resultados obtenidos}
+\addcontentsline{toc}{section}{Resultados obtenidos}
 Como se mencionó antes, las consultas las ejecutamos con valores distintos a los propuestos por la cátedra.
 A continuación, se detallan los resultados obtenidos:
+\linebreak
 \subsection*{Consulta A}
 \subsubsection*{Ejecucion 1}
 \noindent
@@ -251,7 +265,7 @@ A continuación, se detallan los resultados obtenidos:
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaA.png}
 \end{center}
-
+\newpage
 \subsubsection*{Ejecucion 2}
 \noindent
 \underline{Parámetros}
@@ -268,7 +282,7 @@ A continuación, se detallan los resultados obtenidos:
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaA-ejec2.png}
 \end{center}
-
+\newpage
 \subsubsection*{Ejecucion 3}
 \noindent
 \underline{Parámetros}
@@ -285,7 +299,7 @@ A continuación, se detallan los resultados obtenidos:
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaA-ejec3.png}
 \end{center}
-
+\newpage
 \subsection*{Consulta B}
 \subsubsection*{Ejecucion 1}
 \noindent
@@ -307,7 +321,7 @@ El camino encontrado fue Liverpool $\rightarrow$ Fuerteventura $\rightarrow$ Mad
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaB-ejec1.png}
 \end{center}
-
+\newpage
 \subsubsection*{Ejecucion 2}
 \noindent
 \underline{Parámetros}
@@ -326,7 +340,7 @@ El camino encontrado fue Liverpool $\rightarrow$ Fuerteventura $\rightarrow$ Mad
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaB-ejec2.png}
 \end{center}
-
+\newpage
 \subsubsection*{Ejecucion 3}
 \noindent
 \underline{Parámetros}
@@ -345,7 +359,7 @@ El camino encontrado fue Liverpool $\rightarrow$ Fuerteventura $\rightarrow$ Mad
 \begin{center}
 \includegraphics[scale=0.40]{./imagenes/consultaB-ejec3.png}
 \end{center}
-
+\newpage
 \subsubsection*{Ejecucion 4}
 \noindent
 \underline{Parámetros}
@@ -365,6 +379,9 @@ El camino encontrado fue Liverpool $\rightarrow$ Fuerteventura $\rightarrow$ Mad
 \includegraphics[scale=0.40]{./imagenes/consultaB-ejec4.png}
 \end{center}
 \end{document}
+
+\newpage
+\section*{Apendice X}
 
 
 

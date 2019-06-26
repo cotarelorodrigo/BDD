@@ -1,0 +1,15 @@
+\babel@toc {spanish}{}
+\contentsline {section}{Parser de los archivos HTML provistos por la c\IeC {\'a}tedra}{3}{section*.2}
+\contentsline {section}{Concatenaci\IeC {\'o}n de los archivos pkl}{3}{section*.3}
+\contentsline {section}{An\IeC {\'a}lisis de los datos obtenidos}{3}{section*.4}
+\contentsline {section}{Generaci\IeC {\'o}n de la informaci\IeC {\'o}n completa de los vuelos}{5}{section*.5}
+\contentsline {section}{Lecturas sobre bases de datos orientadas a grafos y el lenguaje Cypher}{6}{section*.6}
+\contentsline {section}{Instalaci\IeC {\'o}n del Neo4j}{6}{section*.7}
+\contentsline {section}{Primer approach para resolver las consultas}{6}{section*.8}
+\contentsline {section}{Segundo approach para resolver las consultas}{7}{section*.9}
+\contentsline {section}{Regeneraci\IeC {\'o}n del set de datos}{8}{section*.10}
+\contentsline {section}{Carga del set de datos en el Neo4j y creaci\IeC {\'o}n de la base de datos}{8}{section*.11}
+\contentsline {section}{Ejecuci\IeC {\'o}n de las consultas con los datos reales}{8}{section*.12}
+\contentsline {section}{Comandos utilizados}{9}{section*.13}
+\contentsline {section}{Consultas}{10}{section*.14}
+\contentsline {section}{Resultados obtenidos}{12}{section*.15}
